@@ -33,7 +33,9 @@ int main(int argc, char *argv[]) {
 
     memset(&addr,0,sizeof(addr));
     addr.sin_family = AF_INET;
-    memset(&addr.sin_addr.s_addr,*server->h_addr_list[0],server->h_length);
+    memcpy(&addr.sin_addr.s_addr,
+            server->h_addr_list[0],
+            server->h_length);
     addr.sin_port = htons(80);
 
     if (connect(sockfd,(struct sockaddr*)&addr,sizeof(addr)) == -1) {
@@ -44,7 +46,13 @@ int main(int argc, char *argv[]) {
     printf("Connected to-> %s:%d\n",hostname,port);
 
     char request[1024];
-    sprintf(request, "GET / HTTP/1.1\r\nHost: %s\r\n\r\n", hostname);
+
+    snprintf(request, sizeof(request),
+            "GET / HTTP/1.1\r\n"
+            "Host: %s\r\n"
+            "Connection: close\r\n"
+            "\r\n",
+            hostname);
 
     if (send(sockfd, request, strlen(request), 0) < 0) {
         perror("Send failed");
@@ -59,6 +67,8 @@ int main(int argc, char *argv[]) {
         buffer[bytes_received] = '\0';
         printf("%s", buffer);
     }
+
+    if (bytes_received < 0) perror("recv");
 
     close(sockfd);
 
