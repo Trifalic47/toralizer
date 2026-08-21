@@ -1,6 +1,8 @@
 /* toralizer.c */
 
 #include "toralizer.h"
+#include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 
 int main(int argc, char *argv[]) {
@@ -42,47 +44,53 @@ int main(int argc, char *argv[]) {
 
     printf("Connected to-> %s:%d\n",hostname,port);
 
-    char request[1024];
+    char greet[] = {0x05,0x01,0x00}; // 3bytes greeting
+    char hex[strlen(argv[2])];
 
-    char greet[] = {0x05,0x01,0x00};
+    // for (int i = 0; i<strlen(argv[2]);i++) {
+    //     int num = argv[2][i] - '0';
+    //     unsigned char hex_decimal[3];
+    //     snprintf((char *)hex_decimal, sizeof(hex_decimal), "%02X", num);
+    //     hex[i] = hex_decimal[0];
+    // }
 
-    char RFC[10];
-    RFC[0] = 0x05;
-    RFC[1] = 0x01;
-    RFC[2] = 0x00;
-    RFC[3] = 0x01;
-    memcpy(&RFC[4], &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
-
-    // Copy 2 bytes of network byte order port
-    uint16_t net_port = htons(PROXYPORT);
-    memcpy(&RFC[8], &net_port, sizeof(net_port));
-
-    ssize_t sent = send(sockfd, RFC, sizeof(RFC), 0);
-    if (sent < (ssize_t)sizeof(RFC)) {
+    ssize_t sent = send(sockfd, greet,sizeof(greet), 0);
+    if (sent < (ssize_t)sizeof(greet)) {
         perror("SOCKS5 connect request failed");
         close(sockfd);
         return 1;
     }
-    snprintf(request,sizeof(request),"GET / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",PROXY);
 
-    if (send(sockfd,request,sizeof(request),0) < 0) {
-        perror("send failed\n");
-        close(sockfd);
-        return 1;
+    size_t hostname_len = strlen(hostname);
 
-    }
+    unsigned char request[4 + 1 + hostname_len + 2];
+
+    request[0] = 0x05;
+    request[1] = 0x01;
+    request[2] = 0x00;
+    request[3] = 0x03;                  // ATYP = DOMAIN
+    request[4] = hostname_len;          // hostname length
+
+    memcpy(&request[5], hostname, hostname_len);
+
+    request[5 + hostname_len] = (port >> 8) & 0xFF;
+    request[6 + hostname_len] = port & 0xFF;
 
     char buffer[4096];
-
     int bytes_received = 0;
+
+    ssize_t request_send = send(sockfd,request,sizeof(request),0);
+    if (request_send < (ssize_t)sizeof(greet)) {
+        perror("Sending request failed\n");
+        close(sockfd);
+        return 1;
+    }
+
     while ((bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
         buffer[bytes_received] = '\0';
         printf("%s", buffer);
     }
 
-    if (bytes_received < 0) perror("recv");
-
     close(sockfd);
-
     return 0;
 }
