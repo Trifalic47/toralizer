@@ -86,6 +86,27 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    char http_request[4096];
+
+    int http_len = snprintf(
+            http_request,
+            sizeof(http_request),
+            "GET / HTTP/1.1\r\n"
+            "Host: %s\r\n"
+            "Connection: close\r\n"
+            "\r\n",
+            hostname
+            );
+
+    ssize_t sent1 = send(sockfd, http_request, http_len, 0);
+
+    if (sent1 < 0) {
+        perror("send HTTP request");
+        close(sockfd);
+        return 1;
+    }
+
+    /* Receiving the response from the server */
     while ((bytes_received = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
         buffer[bytes_received] = '\0';
         printf("%s", buffer);
