@@ -1,7 +1,6 @@
 /* toralizer.c */
 
 #include "toralizer.h"
-#include <sys/socket.h>
 
 int main(int argc, char *argv[]) {
     char *hostname;
